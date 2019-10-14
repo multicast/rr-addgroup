@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+test -z $(type -p) || { echo bash required; exit 1; }
+set -e
+set -u
+source ${RRCONFINC}
+
+# todo - syntax check for GROUP_NAME & GROUP_GID
+
+getent group "${GROUP_NAME}" >/dev/null && {
+  gidinfo=""
+  test -z "${GROUP_GID}" || gidinfo="with GID=${GROUP_GID} "
+  logv Requested ${GROUP_NAME} ${gidinfo}exists: $(getent group "${GROUP_NAME}")
+  exit 0
+}
+
+test -z "${GROUP_GID}" && {
+  exec addgroup "${GROUP_NAME}"
+}
+
+getent group "${GROUP_GID}" >/dev/null && {
+  logv "Requested GID ${GROUP_GID} for group '${GROUP_NAME}' is already used: $(getent group "${GROUP_GID}")"
+  exit 0
+}
+exec addgroup --gid "${GROUP_GID}" "${GROUP_NAME}"
