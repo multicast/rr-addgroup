@@ -1,24 +1,40 @@
 #!/usr/bin/env bash
-test -z $(type -p) || { echo bash required; exit 1; }
+test -z "$(type -p)" || { echo bash required; exit 1; }
 set -e
 set -u
-source ${RRCONFINC}
+source "${RRCONFINC}"
 
-# todo - syntax check for GROUP_NAME & GROUP_GID
+# command line argument has preference
+test $# -eq 1 && ADDGROUP_NAME="${1}"
 
-getent group "${GROUP_NAME}" >/dev/null && {
-  gidinfo=""
-  test -z "${GROUP_GID}" || gidinfo="with GID=${GROUP_GID} "
-  logv Requested ${GROUP_NAME} ${gidinfo}exists: $(getent group "${GROUP_NAME}")
+# check group name
+ADDGROUP_NAME="${ADDGROUP_NAME:=${GROUP_NAME:=/unset/}}"
+if [[ "${ADDGROUP_NAME}" = "/unset/" ]]; then
+  fail "Missing group name to add."
+fi
+
+# check group gid
+ADDGROUP_GIDFORCE="${ADDGROUP_GIDFORCE:=}"
+ADDGROUP_GID="${ADDGROUP_GID:=${GROUP_GID:=${ADDGROUP_GIDFORCE:=}}}"
+
+grpent=$(getent group "${ADDGROUP_NAME}") || {
+
+  # no group id provided or forced:
+  test -z "${ADDGROUP_GID}" &&
+    exec addgroup "${ADDGROUP_NAME}"
+
+  # gid set from env or forced env:
+  exec addgroup --gid "${ADDGROUP_GID}" "${ADDGROUP_NAME}"
+}
+
+## group exists
+##
+test -z "${ADDGROUP_GID}" &&
+  exit 0 # no gid requested or forced
+
+currentgid="$(echo $grpent | awk -F: '{print$3}')"
+logv "Group ${ADDGROUP_NAME} already exist with GID=${currentgid}"
+
+test -z "${ADDGROUP_GIDFORCE}" &&
   exit 0
-}
-
-test -z "${GROUP_GID}" && {
-  exec addgroup "${GROUP_NAME}"
-}
-
-getent group "${GROUP_GID}" >/dev/null && {
-  logv "Requested GID ${GROUP_GID} for group '${GROUP_NAME}' is already used: $(getent group "${GROUP_GID}")"
-  exit 0
-}
-exec addgroup --gid "${GROUP_GID}" "${GROUP_NAME}"
+fail "Cannot change group ${ADDGROUP_NAME} GID to ${ADDGROUP_GIDFORCE}"
