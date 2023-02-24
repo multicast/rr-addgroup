@@ -17,6 +17,11 @@ fi
 ADDGROUP_GIDFORCE="${ADDGROUP_GIDFORCE:=}"
 ADDGROUP_GID="${ADDGROUP_GID:=${GROUP_GID:=${ADDGROUP_GIDFORCE:=}}}"
 
+# if forced, ensure requested GID is the same as forced
+test -n "${ADDGROUP_GIDFORCE}" &&
+  test "{ADDGROUP_GIDFORCE}" -ne "${ADDGROUP_GID}" &&
+    ADDGROUP_GID="${ADDGROUP_GIDFORCE}"
+
 grpent=$(getent group "${ADDGROUP_NAME}") || {
 
   # no group id provided or forced:
