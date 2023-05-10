@@ -1,34 +1,33 @@
 #!/usr/bin/env bash
 test -z "$(type -p)" || { echo bash required; exit 1; }
-set -e
-set -u
+set -Eeuo pipefail
 source "${RRCONFINC}"
 
-# command line argument has preference
+# command line argument, if specified, has preference
 test $# -eq 1 && ADDGROUP_NAME="${1}"
 
 # check group name
-ADDGROUP_NAME="${ADDGROUP_NAME:=${GROUP_NAME:=/unset/}}"
+: ${ADDGROUP_NAME:-${GROUP_NAME:=/unset/}}
 if [[ "${ADDGROUP_NAME}" = "/unset/" ]]; then
   fail "Missing group name to add."
 fi
 
 # check group gid
-ADDGROUP_GIDFORCE="${ADDGROUP_GIDFORCE:=}"
-ADDGROUP_GID="${ADDGROUP_GID:=${GROUP_GID:=${ADDGROUP_GIDFORCE:=}}}"
+: ${ADDGROUP_GIDFORCE:=}
+: ${ADDGROUP_GID:=${GROUP_GID:-}}
 
 # if forced, ensure requested GID is the same as forced
 test -n "${ADDGROUP_GIDFORCE}" &&
-  test "{ADDGROUP_GIDFORCE}" -ne "${ADDGROUP_GID}" &&
-    ADDGROUP_GID="${ADDGROUP_GIDFORCE}"
+  ADDGROUP_GID="${ADDGROUP_GIDFORCE}"
 
-grpent=$(getent group "${ADDGROUP_NAME}") || {
+getent group "${ADDGROUP_NAME}" >/dev/null 2>&1 || {
+  # the group does not exist
 
-  # no group id provided or forced:
   test -z "${ADDGROUP_GID}" &&
+    # no gid requested - add by name:
     exec addgroup "${ADDGROUP_NAME}"
 
-  # gid set from env or forced env:
+  # use provided gid to create group:
   exec addgroup --gid "${ADDGROUP_GID}" "${ADDGROUP_NAME}"
 }
 
@@ -37,7 +36,7 @@ grpent=$(getent group "${ADDGROUP_NAME}") || {
 test -z "${ADDGROUP_GID}" &&
   exit 0 # no gid requested or forced
 
-currentgid="$(echo $grpent | awk -F: '{print$3}')"
+currentgid="$(getent group "${ADDGROUP_NAME}" | awk -F: '{print$3}')"
 test "${ADDGROUP_GID}" -eq "${currentgid}" &&
   exit 0
 logv "Group ${ADDGROUP_NAME} already exist with GID=${currentgid}"
