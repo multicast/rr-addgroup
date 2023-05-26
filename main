@@ -7,14 +7,14 @@ source "${RRCONFINC}"
 test $# -eq 1 && ADDGROUP_NAME="${1}"
 
 # check group name
-: ${ADDGROUP_NAME:-${GROUP_NAME:=/unset/}}
-if [[ "${ADDGROUP_NAME}" = "/unset/" ]]; then
+: "${ADDGROUP_NAME:-${GROUP_NAME:-}}"
+if [[ "${ADDGROUP_NAME}" = "" ]]; then
   fail "Missing group name to add."
 fi
 
 # check group gid
-: ${ADDGROUP_GIDFORCE:=}
-: ${ADDGROUP_GID:=${GROUP_GID:-}}
+: "${ADDGROUP_GIDFORCE:=}"
+: "${ADDGROUP_GID:=${GROUP_GID:-}}"
 
 # if forced, ensure requested GID is the same as forced
 test -n "${ADDGROUP_GIDFORCE}" &&
